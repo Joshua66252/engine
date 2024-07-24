@@ -443,7 +443,9 @@ void load_scene(string path){
 	}
 }
 void save_scene(string path){
-
+	ofstream scene_file;
+	scene_file.open(path);
+	scene_file.close();
 }
 int width, height;
 void run_engine(void (&pre_logic)(void (&)()),void(&logic)(void),int size_x,int size_y,string window_title,bool two_dimensional = false) {

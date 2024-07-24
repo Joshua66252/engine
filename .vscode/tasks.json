@@ -1,0 +1,41 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cppbuild",
+			"label": "C/C++: g++.exe build active file",
+			"command": "C:/msys64/ucrt64/bin/g++.exe",
+			"args": [
+				"-fdiagnostics-color=always",
+				"-g",
+				"${workspaceFolder}\\src\\game.cpp",
+				"${workspaceFolder}\\src\\imgui\\backends\\imgui_impl_opengl3.cpp",
+				"${workspaceFolder}\\src\\imgui\\backends\\imgui_impl_glfw.cpp",
+				"${workspaceFolder}\\src\\imgui\\imgui*.cpp",
+				"-I${workspaceFolder}\\src\\",
+				"-I${workspaceFolder}\\src\\imgui",
+				"-I${workspaceFolder}\\src\\imgui\\backends",
+				"-L${workspaceFolder}\\lib",
+				"-static-libgcc",
+				"-static-libstdc++",
+				"-lopengl32",
+				"-lglfw3",
+				"-lglu32",
+				"-lgdi32",
+				"-o",
+				"${workspaceFolder}\\src\\game.exe"
+			],
+			"options": {
+				"cwd": "C:/msys64/ucrt64/bin"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"detail": "compiler: C:/msys64/ucrt64/bin/g++.exe",
+		}
+	]
+}

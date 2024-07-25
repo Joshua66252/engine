@@ -3,6 +3,7 @@
 void pre_logic(void (&logic)(void)){
 	pre_logic_ran = true;
 	load_scene("./default.scene");
+	scene_objects[0].get().load_texture("container.jpg");
 	logic();
 }
 float move_speed=1.3;
@@ -51,6 +52,8 @@ void obj_editor(Object* obj,int ID){
 		vec3editor("Scale",&obj->scale,0);
 		vec3editor("Rotation",&obj->rotation,1);
 		vec3editor("Position",&obj->position,2);
+		ImGui::TextColored(ImVec4(1,1,0,1),"Culling");
+		ImGui::ListBox("##cullingtype",&obj->gl_face_culling,object_culling_types,IM_ARRAYSIZE(object_culling_types));
 		ImGui::TreePop();
 	}
 	ImGui::PopID();

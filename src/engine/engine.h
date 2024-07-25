@@ -1,4 +1,4 @@
-#include "imgui.h"
+#include "imgui.h" // Temporary until I make my own gui library
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <GL/glu.h>
@@ -14,6 +14,8 @@
 #include <cstdint>
 #include <sstream>
 #include <iomanip>
+#define STB_IMAGE_IMPLEMENTATION
+#include <engine/stb_image.h> // Temporary until I make my own image processor
 using namespace std;
 float getDeltaTime() {
     static float lastFrame = 0.0f;
@@ -70,6 +72,48 @@ struct Vector3{
 	float z;
 	float* vec[3];
 };
+struct Vector2{
+	Vector2()
+	{
+		x = 0.0f;
+		y = 0.0f;
+		vec[0]=&x;
+		vec[1]=&y;
+	}
+	Vector2(float _x,float _y){
+		x=_x;
+		y=_y;
+		vec[0]=&x;
+		vec[1]=&y;
+	}
+	bool operator==(const Vector2& _vector) const
+	{
+		return (this->x==_vector.x&&this->y==_vector.y);
+	}
+	bool operator!=(const Vector2& _vector) const
+	{
+		return !(this->x==_vector.x&&this->y==_vector.y);
+	}
+	Vector2 operator+(const Vector2& _vector) const
+	{
+		return Vector2(this->x+_vector.x,this->y+_vector.y);
+	}
+	Vector2 operator-(const Vector2& _vector) const
+	{
+		return Vector2(this->x-_vector.x,this->y-_vector.y);
+	}
+	Vector2 operator-(const float& num) const
+	{
+		return Vector2(this->x-num,this->y-num);
+	}
+	Vector2 operator*(const float& num) const
+	{
+		return Vector2(this->x*num,this->y*num);
+	}
+	float x;
+	float y;
+	float* vec[2];
+};
 struct Color4{
 	Color4(float _r, float _g, float _b, float _a){
 		r = _r;
@@ -86,32 +130,28 @@ struct Mesh
 {
 	Mesh(){
 		vertices = {
-			Vector3(-1, -1, -1),
-			Vector3(1, -1, -1),
 			Vector3(1, 1, -1),
-			Vector3(-1, 1, -1),
-			Vector3(-1, -1, 1),
-			Vector3(1, -1, 1),
+			Vector3(1, -1, -1),
 			Vector3(1, 1, 1),
-			Vector3(-1, 1, 1)
+			Vector3(1, -1, 1),
+			Vector3(-1, 1, -1),
+			Vector3(-1, -1, -1),
+			Vector3(-1, 1, 1),
+			Vector3(-1, -1, 1)
 		};
 		faces = {
-			{0, 1, 2, 3},
-			{4, 5, 6, 7},
-			{0, 1, 5, 4},
-			{2, 3, 7, 6},
-			{0, 3, 7, 4},
-			{1, 2, 6, 5}
+			{0, 4, 6, 2},
+			{3, 2, 6, 7},
+			{7, 6, 4, 5},
+			{5, 1, 3, 7},
+			{1, 0, 2, 3},
+			{5, 4, 0, 1}
 		};
 		colors = {
-			Vector3(1, 1, 1),
-			Vector3(1, 1, 1),
-			Vector3(1, 1, 1),
-			Vector3(1, 1, 1),
-			Vector3(1, 1, 1),
-			Vector3(1, 1, 1),
-			Vector3(1, 1, 1),
 			Vector3(1, 1, 1)
+		};
+		vertex_colors = {
+			0,0,0,0,0,0,0,0
 		};
 	}
 	Mesh(vector<Vector3>& _vertices,vector<vector<unsigned int>>& _faces){
@@ -121,6 +161,7 @@ struct Mesh
 	vector<Vector3> vertices;
 	vector<vector<unsigned int>> faces;
 	vector<Vector3> colors;
+	vector<uint16_t> vertex_colors;
 };
 string vector3to_string(Vector3 vect){
 	return to_string(vect.x)+","+to_string(vect.y)+","+to_string(vect.z);
@@ -214,6 +255,13 @@ GLFWwindow* window;
 bool pre_logic_ran = false;
 vector<reference_wrapper<Camera>> scene_cameras;
 reference_wrapper<Camera> current_camera = *starting_camera;
+
+const char* object_culling_types[] = {
+	"None",
+	"Back face",
+	"Front face"
+};
+
 class Object{
 	public:
 		char name[2][128];
@@ -221,7 +269,9 @@ class Object{
 		Vector3 rotation;
 		Vector3 scale = Vector3(.125,.125,.125);
 		Mesh mesh;
+		GLuint texture_id = 1;
 		bool wireframe = false;
+		int gl_face_culling = 1;
 	Object() : name() {
 		string_to_char("none",name[0]);
 	}
@@ -237,17 +287,19 @@ class Object{
 			mesh.vertices.clear();
 			mesh.faces.clear();
 			mesh.colors.clear();
+			mesh.vertex_colors.clear();
+			mesh.colors.push_back(Vector3(1,1,1));
 			string current_line;
 			vector<Vector3> vertices;
 			vector<vector<unsigned int>> faces;
-			vector<Vector3> colors;
+			vector<uint16_t> colors;
 			while (getline(file, current_line)){
 				vector<string> split;
 				if (current_line.substr(0,2).compare("v ") == 0){
 					split = split_string(current_line.substr(2)," ");
 					Vector3 vertex(stof(split[0]),stof(split[1]),stof(split[2]));
 					vertices.push_back(vertex);
-					colors.push_back(Vector3(((float)rand()/RAND_MAX),((float)rand()/RAND_MAX),((float)rand()/RAND_MAX)));
+					colors.push_back(0);
 				}
 				if (current_line.substr(0,2).compare("f ") == 0){
 					split = split_string(current_line.substr(2)," ");
@@ -267,7 +319,7 @@ class Object{
 			vertices.clear();
 			mesh.faces = faces;
 			faces.clear();
-			mesh.colors = colors;
+			mesh.vertex_colors = colors;
 			colors.clear();
 			file.close();
 		}
@@ -278,8 +330,46 @@ class Object{
 		mesh.faces = new_mesh.faces;
 		mesh.vertices = new_mesh.vertices;
 	}
+	void load_texture(string texture_path){
+		glGenTextures(1, &texture_id);
+		glBindTexture(GL_TEXTURE_2D, texture_id);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		int width, height, nrChannels;
+		unsigned char *data = stbi_load(texture_path.c_str(), &width, &height, &nrChannels, 0);
+		if (data) {
+			GLenum format;
+			if (nrChannels == 1)
+				format = GL_RED;
+			else if (nrChannels == 3)
+				format = GL_RGB;
+			else if (nrChannels == 4)
+				format = GL_RGBA;
+			gluBuild2DMipmaps(GL_TEXTURE_2D, format, width, height, format, GL_UNSIGNED_BYTE, data);
+		} else {
+			std::cerr << "Failed to load texture: " << texture_id << std::endl;
+		}
+		stbi_image_free(data);
+	}
 	void draw_mesh(){
-		glColor3f(1.0f, 1.0f, 1.0f);
+		switch(gl_face_culling){
+			case 0:
+				glDisable(GL_CULL_FACE);
+				break;
+			case 1:
+				glEnable(GL_CULL_FACE);
+				glCullFace(GL_BACK);
+				break;
+			case 2:
+				glEnable(GL_CULL_FACE);
+				glCullFace(GL_FRONT);
+				break;
+			default:
+				break;
+		}
+		glBindTexture(GL_TEXTURE_2D, texture_id);
 		for(int i=0;i<mesh.faces.size();i++){
 			bool actually_render = false;
 			if(mesh_culling){
@@ -313,7 +403,7 @@ class Object{
 					vertex = vertex+position;
 					double distance_from_camera = point_distance(current_camera.get().position, vertex);
 					float distance_factor = sigmoid(distance_from_camera)*(distance_from_camera*lighting_severity);
-					Vector3 vertex_color = mesh.colors[mesh.faces[i][_i]];
+					Vector3 vertex_color = mesh.colors[mesh.vertex_colors[mesh.faces[i][_i]]];
 					if(mesh_lighting){
 						vertex_color = vertex_color-distance_factor;
 						if(vertex_color.x<0)
@@ -324,6 +414,15 @@ class Object{
 							vertex_color.z=0;
 					}
 					glColor3f(vertex_color.x, vertex_color.y, vertex_color.z);
+					if(_i==0){
+						glTexCoord2f(1, 1);
+					}else if(_i==1){
+						glTexCoord2f(0, 1);
+					}else if(_i==2){
+						glTexCoord2f(0, 0);
+					}else if(_i==3){
+						glTexCoord2f(1, 0);
+					}
 					glVertex3f(vertex.x, vertex.y, vertex.z);
 				}
 				glEnd();
@@ -467,6 +566,7 @@ void run_engine(void (&pre_logic)(void (&)()),void(&logic)(void),int size_x,int 
 	glTranslatef(0.0, 0.0, -1.0);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_CULL_FACE);
 
 	double lastTime = glfwGetTime();
     int nbFrames = 0;

@@ -417,11 +417,11 @@ class Object{
 					if(_i==0){
 						glTexCoord2f(1, 1);
 					}else if(_i==1){
-						glTexCoord2f(0, 1);
+						glTexCoord2f(1, 0);
 					}else if(_i==2){
 						glTexCoord2f(0, 0);
 					}else if(_i==3){
-						glTexCoord2f(1, 0);
+						glTexCoord2f(0, 1);
 					}
 					glVertex3f(vertex.x, vertex.y, vertex.z);
 				}

@@ -34,8 +34,15 @@ void obj_editor(Object* obj,int ID){
 	if (ImGui::TreeNode(string_to_char((string)object_name+"##"+to_string(ID),temp))){
 		ImGui::SetNextItemWidth(300.0f);
 		ImGui::InputText("##Text input",editor_name,128);
+		ImGui::TextColored(ImVec4(1,1,0,1),"Texture");
+		ImGui::SameLine();
+		ImGui::SliderInt("##TextureSlider",(int *)&obj->texture_id,0,100); //If higher than 100 needed just tab and type
 		if(ImGui::Button("Change name")){
 			string_to_char(editor_name,object_name);
+		}
+		ImGui::SameLine();
+		if(ImGui::Button("Load Texture")){
+			obj->load_texture(editor_name);
 		}
 		ImGui::SameLine();
 		if(ImGui::Button("Load mesh")){

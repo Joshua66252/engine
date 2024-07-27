@@ -261,7 +261,6 @@ const char* object_culling_types[] = {
 	"Back face",
 	"Front face"
 };
-
 class Object{
 	public:
 		char name[2][128];
@@ -269,7 +268,7 @@ class Object{
 		Vector3 rotation;
 		Vector3 scale = Vector3(.125,.125,.125);
 		Mesh mesh;
-		GLuint texture_id = 1;
+		GLuint texture_id = 0;
 		bool wireframe = false;
 		int gl_face_culling = 1;
 	Object() : name() {

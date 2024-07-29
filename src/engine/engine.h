@@ -17,102 +17,120 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <engine/stb_image.h> // Temporary until I make my own image processor
 using namespace std;
+float fov = 80.0f;
 float getDeltaTime() {
-    static float lastFrame = 0.0f;
-    float currentFrame = glfwGetTime();
-    float deltaTime = currentFrame - lastFrame;
-    lastFrame = currentFrame;
-    return deltaTime;
+	static float lastFrame = 0.0f;
+	float currentFrame = glfwGetTime();
+	float deltaTime = currentFrame - lastFrame;
+	lastFrame = currentFrame;
+	return deltaTime;
 }
 float deltaTime=getDeltaTime();
+float sigmoid(float number) {
+	return 1 / (1 + exp(-number));
+}
+vector<string> split_string(string str, string delimiter) {
+	size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+	string token;
+	vector<string> res;
+	while ((pos_end = str.find(delimiter, pos_start)) != string::npos) {
+		token = str.substr (pos_start, pos_end - pos_start);
+		pos_start = pos_end + delim_len;
+		res.push_back (token);
+	}
+	res.push_back (str.substr (pos_start));
+	return res;
+}
 struct Vector3{
 	Vector3()
 	{
 		x = 0.0f;
 		y = 0.0f;
 		z = 0.0f;
-		vec[0]=&x;
-		vec[1]=&y;
-		vec[2]=&z;
 	}
 	Vector3(float _x,float _y,float _z){
 		x=_x;
 		y=_y;
 		z=_z;
-		vec[0]=&x;
-		vec[1]=&y;
-		vec[2]=&z;
 	}
-	bool operator==(const Vector3& _vector) const
-	{
+	bool operator==(const Vector3& _vector) const{
 		return (this->x==_vector.x&&this->y==_vector.y&&this->z==_vector.z);
 	}
-	bool operator!=(const Vector3& _vector) const
-	{
+	bool operator!=(const Vector3& _vector) const{
 		return !(this->x==_vector.x&&this->y==_vector.y&&this->z==_vector.z);
 	}
-	Vector3 operator+(const Vector3& _vector) const
-	{
+	Vector3 operator+(const Vector3& _vector) const{
 		return Vector3(this->x+_vector.x,this->y+_vector.y,this->z+_vector.z);
 	}
-	Vector3 operator-(const Vector3& _vector) const
-	{
+	Vector3 operator-(const Vector3& _vector) const{
 		return Vector3(this->x-_vector.x,this->y-_vector.y,this->z-_vector.z);
 	}
-	Vector3 operator-(const float& num) const
-	{
+	Vector3 operator-(const float& num) const{
 		return Vector3(this->x-num,this->y-num,this->z-num);
 	}
-	Vector3 operator*(const float& num) const
-	{
+	Vector3 operator*(const float& num) const{
 		return Vector3(this->x*num,this->y*num,this->z*num);
+	}
+	Vector3 apply_rotation(Vector3 rotation){
+		Vector3 vertex = Vector3(x,y,z);
+		Vector3 _vertex = Vector3(x,y,z);
+		Vector3 rotation_sin;
+		Vector3 rotation_cos;
+		rotation_sin.x = sin(rotation.x);
+		rotation_sin.y = sin(rotation.y);
+		rotation_sin.z = sin(rotation.z);
+		rotation_cos.x = cos(rotation.x);
+		rotation_cos.y = cos(rotation.y);
+		rotation_cos.z = cos(rotation.z);
+		_vertex.y = vertex.y * rotation_cos.x - vertex.z * rotation_sin.x;
+		_vertex.z = vertex.z * rotation_cos.x + vertex.y * rotation_sin.x;
+		vertex.y = _vertex.y;
+		vertex.z = _vertex.z;
+		_vertex.x = vertex.x * rotation_cos.y + vertex.z * rotation_sin.y;
+		_vertex.z = vertex.z * rotation_cos.y - vertex.x * rotation_sin.y;
+		vertex.x = _vertex.x;
+		vertex.z = _vertex.z;
+		_vertex.x = vertex.x * rotation_cos.z - vertex.y * rotation_sin.z;
+		_vertex.y = vertex.y * rotation_cos.z + vertex.x * rotation_sin.z;
+		vertex.x = _vertex.x;
+		vertex.y = _vertex.y;
+		return vertex;
+	}
+	double distance(Vector3 point){
+		double distance = 0;
+		double dx = point.x-x;
+		double dy = point.y-y;
+		double dz = point.z-z;
+		dx = pow(dx,2);
+		dy = pow(dy,2);
+		dz = pow(dz,2);
+		distance = dx+dy+dz;
+		distance = sqrt(distance);
+		return distance;
+	}
+	void from_str(string str){
+		vector<string> vec = split_string(str,",");
+		x=stof(vec[0]);
+		y=stof(vec[1]);
+		z=stof(vec[2]);
+		vec.clear();
+	}
+	string to_str(){
+		return to_string(x)+","+to_string(y)+","+to_string(z);
+	}
+	glm::vec3 to_glm(){
+		return glm::vec3(x,y,z);
+	}
+	Vector3 cross_vectors(Vector3 vec){
+		Vector3 result;
+		result.x = y*vec.z-z*vec.y;
+		result.y = z*vec.x-x*vec.z;
+		result.z = x*vec.y-vec.y*x;
+		return result;
 	}
 	float x;
 	float y;
 	float z;
-	float* vec[3];
-};
-struct Vector2{
-	Vector2()
-	{
-		x = 0.0f;
-		y = 0.0f;
-		vec[0]=&x;
-		vec[1]=&y;
-	}
-	Vector2(float _x,float _y){
-		x=_x;
-		y=_y;
-		vec[0]=&x;
-		vec[1]=&y;
-	}
-	bool operator==(const Vector2& _vector) const
-	{
-		return (this->x==_vector.x&&this->y==_vector.y);
-	}
-	bool operator!=(const Vector2& _vector) const
-	{
-		return !(this->x==_vector.x&&this->y==_vector.y);
-	}
-	Vector2 operator+(const Vector2& _vector) const
-	{
-		return Vector2(this->x+_vector.x,this->y+_vector.y);
-	}
-	Vector2 operator-(const Vector2& _vector) const
-	{
-		return Vector2(this->x-_vector.x,this->y-_vector.y);
-	}
-	Vector2 operator-(const float& num) const
-	{
-		return Vector2(this->x-num,this->y-num);
-	}
-	Vector2 operator*(const float& num) const
-	{
-		return Vector2(this->x*num,this->y*num);
-	}
-	float x;
-	float y;
-	float* vec[2];
 };
 struct Color4{
 	Color4(float _r, float _g, float _b, float _a){
@@ -125,6 +143,16 @@ struct Color4{
 	float g;
 	float b;
 	float a;
+};
+class Camera{
+	public:
+		char name[2][128];
+		Vector3 position = Vector3(0,0,0);
+		Vector3 rotation = Vector3(0,1.57,0);;
+		float yaw = 0;
+	Camera() : name() {
+		strcpy(name[0],"none");
+	}
 };
 struct Mesh
 {
@@ -163,104 +191,6 @@ struct Mesh
 	vector<Vector3> colors;
 	vector<uint16_t> vertex_colors;
 };
-string vector3to_string(Vector3 vect){
-	return to_string(vect.x)+","+to_string(vect.y)+","+to_string(vect.z);
-}
-glm::vec3 vector3to_glm(Vector3 vect){
-	return glm::vec3(vect.x,vect.y,vect.z);
-}
-Vector3 apply_vertex_rotation(Vector3 vertex, Vector3 rotation){
-	Vector3 _vertex = vertex;
-	Vector3 rotation_sin;
-	Vector3 rotation_cos;
-	rotation_sin.x = sin(rotation.x);
-	rotation_sin.y = sin(rotation.y);
-	rotation_sin.z = sin(rotation.z);
-	rotation_cos.x = cos(rotation.x);
-	rotation_cos.y = cos(rotation.y);
-	rotation_cos.z = cos(rotation.z);
-	_vertex.y = vertex.y * rotation_cos.x - vertex.z * rotation_sin.x;
-	_vertex.z = vertex.z * rotation_cos.x + vertex.y * rotation_sin.x;
-	vertex = _vertex;
-	_vertex.x = vertex.x * rotation_cos.y + vertex.z * rotation_sin.y;
-	_vertex.z = vertex.z * rotation_cos.y - vertex.x * rotation_sin.y;
-	vertex = _vertex;
-	_vertex.x = vertex.x * rotation_cos.z - vertex.y * rotation_sin.z;
-	_vertex.y = vertex.y * rotation_cos.z + vertex.x * rotation_sin.z;
-	return _vertex;
-}
-double point_distance(Vector3 point0, Vector3 point1){
-	double distance = 0;
-	double dx = point1.x-point0.x;
-	double dy = point1.y-point0.y;
-	double dz = point1.z-point0.z;
-	dx = pow(dx,2);
-	dy = pow(dy,2);
-	dz = pow(dz,2);
-	distance = dx+dy+dz;
-	distance = sqrt(distance);
-	return distance;
-}
-float sigmoid(float number) {
-	return 1 / (1 + exp(-number));
-}
-Vector3 cross_vectors(Vector3 vec0, Vector3 vec1){
-	Vector3 result;
-	result.x = vec0.y*vec1.z-vec0.z*vec1.y;
-	result.y = vec0.z*vec1.x-vec0.x*vec1.z;
-	result.z = vec0.x*vec1.y-vec0.y*vec1.x;
-	return result;
-}
-char* string_to_char(string str,char* out){
-	for(int i=0;i<128;i++){
-		out[i] = str[i];
-	}
-	return out;
-}
-vector<string> split_string(string str, string delimiter) {
-	size_t pos_start = 0, pos_end, delim_len = delimiter.length();
-	string token;
-	vector<string> res;
-	while ((pos_end = str.find(delimiter, pos_start)) != string::npos) {
-		token = str.substr (pos_start, pos_end - pos_start);
-		pos_start = pos_end + delim_len;
-		res.push_back (token);
-	}
-	res.push_back (str.substr (pos_start));
-	return res;
-}
-float fov = 80.0f;
-auto setup_matrix = [](GLFWwindow* window, int width, int height) {
-	glViewport(0, 0, width, height);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	gluPerspective(fov, static_cast<float>(width) / static_cast<float>(height), 0.1f, 1000.0f);
-	glMatrixMode(GL_MODELVIEW);
-};
-class Camera{
-	public:
-		char name[2][128];
-		Vector3 position = Vector3(0,0,0);
-		Vector3 rotation = Vector3(0,1.57,0);;
-		float yaw = 0;
-	Camera() : name() {
-		string_to_char("none",name[0]);
-	}
-};
-Camera* starting_camera = new Camera;
-bool mesh_culling = true;
-bool mesh_lighting = true;
-float lighting_severity = .7;
-GLFWwindow* window;
-bool pre_logic_ran = false;
-vector<reference_wrapper<Camera>> scene_cameras;
-reference_wrapper<Camera> current_camera = *starting_camera;
-
-const char* object_culling_types[] = {
-	"None",
-	"Back face",
-	"Front face"
-};
 class Object{
 	public:
 		char name[2][128];
@@ -270,9 +200,10 @@ class Object{
 		Mesh mesh;
 		GLuint texture_id = 0;
 		bool wireframe = false;
+		bool lighting = true;
 		int gl_face_culling = 1;
 	Object() : name() {
-		string_to_char("none",name[0]);
+		strcpy(name[0],"none");
 	}
 	void from_file(string path){
 		if(path.size()<3){return;}
@@ -352,7 +283,7 @@ class Object{
 		}
 		stbi_image_free(data);
 	}
-	void draw_mesh(){
+	void draw_mesh(reference_wrapper<Camera>& current_cam,float lighting_severity){
 		switch(gl_face_culling){
 			case 0:
 				glDisable(GL_CULL_FACE);
@@ -371,23 +302,23 @@ class Object{
 		glBindTexture(GL_TEXTURE_2D, texture_id);
 		for(int i=0;i<mesh.faces.size();i++){
 			bool actually_render = false;
-			if(mesh_culling){
+			/*if(mesh_culling){
 				for(int _i=0;_i<mesh.faces[i].size();_i++){
 					Vector3 vertex = mesh.vertices[mesh.faces[i][_i]];
 					vertex.x*=scale.x;
 					vertex.y*=scale.y;
 					vertex.z*=scale.z;
-					vertex = apply_vertex_rotation(vertex,rotation);
+					vertex = vertex.apply_rotation(rotation);
 					vertex = vertex+position;
-					double distance_from_camera = point_distance(current_camera.get().position, vertex);
+					double distance_from_camera = current_camera.get().position.distance(vertex);
 					float distance_factor = sigmoid(distance_from_camera)*(distance_from_camera*lighting_severity);
 					if(distance_factor<=1){
 						actually_render = true;
 						break;
 					}
 				}
-			}
-			if(actually_render||!mesh_culling){
+			}*/
+			//if(actually_render||!mesh_culling){
 				if(wireframe){
 					glBegin(GL_LINE_LOOP);
 				}else{
@@ -398,12 +329,12 @@ class Object{
 					vertex.x*=scale.x;
 					vertex.y*=scale.y;
 					vertex.z*=scale.z;
-					vertex = apply_vertex_rotation(vertex,rotation);
+					vertex = vertex.apply_rotation(rotation);
 					vertex = vertex+position;
-					double distance_from_camera = point_distance(current_camera.get().position, vertex);
+					double distance_from_camera = current_cam.get().position.distance(vertex);
 					float distance_factor = sigmoid(distance_from_camera)*(distance_from_camera*lighting_severity);
 					Vector3 vertex_color = mesh.colors[mesh.vertex_colors[mesh.faces[i][_i]]];
-					if(mesh_lighting){
+					if(lighting){
 						vertex_color = vertex_color-distance_factor;
 						if(vertex_color.x<0)
 							vertex_color.x=0;
@@ -425,78 +356,102 @@ class Object{
 					glVertex3f(vertex.x, vertex.y, vertex.z);
 				}
 				glEnd();
-			}
+			//}
 		}
 	}
 };
-bool cursor_lock = false;
-bool hide_cursor = true;
-uint_fast16_t default_cursor_pos[2];
-uint_fast16_t changed_cursor_pos[2];
-vector<reference_wrapper<Object>> scene_objects;
-
-void built_in_movement(float move_speed,float turn_speed){
-	if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT))
-		current_camera.get().position.y-=move_speed*deltaTime;
-	if(glfwGetKey(window, GLFW_KEY_SPACE))
-		current_camera.get().position.y+=move_speed*deltaTime;
-	if(glfwGetKey(window,GLFW_KEY_W)){
-		Vector3 position_offset = apply_vertex_rotation(Vector3(move_speed*deltaTime,0,0),current_camera.get().rotation);
-		current_camera.get().position = current_camera.get().position+position_offset;
+void updateTitleWithFPS(GLFWwindow* window,string original_title, double& lastTime, int& nbFrames) {
+	double currentTime = glfwGetTime();
+	nbFrames++;
+	if (currentTime - lastTime >= 1.0) {
+		double fps = double(nbFrames) / (currentTime - lastTime);
+		ostringstream ss;
+		ss << fixed << setprecision(1) << fps;
+		string fpsString = original_title + " FPS: " + ss.str();
+		glfwSetWindowTitle(window, fpsString.c_str());
+		nbFrames = 0;
+		lastTime += 1.0;
 	}
-	if(glfwGetKey(window,GLFW_KEY_A)){
-		Vector3 position_offset = apply_vertex_rotation(Vector3(0,0,-move_speed*deltaTime),current_camera.get().rotation);
-		current_camera.get().position = current_camera.get().position+position_offset;
+}
+void save_scene(string path){
+	ofstream scene_file;
+	scene_file.open(path);
+	scene_file.close();
+}
+auto setup_matrix = [](GLFWwindow* window, int width, int height) {
+	glViewport(0, 0, width, height);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective(fov, static_cast<float>(width) / static_cast<float>(height), 0.1f, 1000.0f);
+	glMatrixMode(GL_MODELVIEW);
+};
+struct Scene{
+	Scene(){
+		cursor_lock = false;
+		hide_cursor = true;
+		pre_logic_ran = false;
+		lighting_severity = .7;
+		object_culling_types[0] = "None";
+		object_culling_types[1] = "Back face";
+		object_culling_types[2] = "Front face";
 	}
-	if(glfwGetKey(window,GLFW_KEY_S)){
-		Vector3 position_offset = apply_vertex_rotation(Vector3(-move_speed*deltaTime,0,0),current_camera.get().rotation);
-		current_camera.get().position = current_camera.get().position+position_offset;
+	GLFWwindow* window;
+	int width, height;
+	vector<reference_wrapper<Camera>> cameras;
+	Camera* starting_camera = new Camera;
+	reference_wrapper<Camera> current_camera = *starting_camera;
+	vector<reference_wrapper<Object>> objects;
+	uint_fast16_t default_cursor_pos[2];
+	uint_fast16_t changed_cursor_pos[2];
+	bool cursor_lock;
+	bool hide_cursor;
+	bool pre_logic_ran;
+	float lighting_severity;
+	const char* object_culling_types[3];
+};
+void built_in_movement(float move_speed,float turn_speed,Scene* scene){
+	if(glfwGetKey(scene->window, GLFW_KEY_LEFT_SHIFT))
+		scene->current_camera.get().position.y-=move_speed*deltaTime;
+	if(glfwGetKey(scene->window, GLFW_KEY_SPACE))
+		scene->current_camera.get().position.y+=move_speed*deltaTime;
+	if(glfwGetKey(scene->window,GLFW_KEY_W)){
+		Vector3 position_offset = Vector3(move_speed*deltaTime,0,0).apply_rotation(scene->current_camera.get().rotation);
+		scene->current_camera.get().position = scene->current_camera.get().position+position_offset;
 	}
-	if(glfwGetKey(window,GLFW_KEY_D)){
-		Vector3 position_offset = apply_vertex_rotation(Vector3(0,0,move_speed*deltaTime),current_camera.get().rotation);
-		current_camera.get().position = current_camera.get().position+position_offset;
+	if(glfwGetKey(scene->window,GLFW_KEY_A)){
+		Vector3 position_offset = Vector3(0,0,-move_speed*deltaTime).apply_rotation(scene->current_camera.get().rotation);
+		scene->current_camera.get().position = scene->current_camera.get().position+position_offset;
 	}
-	if(cursor_lock&&(default_cursor_pos[0]!=changed_cursor_pos[0]||default_cursor_pos[1]!=changed_cursor_pos[1])){ // Check cursor lock and if position changed
+	if(glfwGetKey(scene->window,GLFW_KEY_S)){
+		Vector3 position_offset = Vector3(-move_speed*deltaTime,0,0).apply_rotation(scene->current_camera.get().rotation);
+		scene->current_camera.get().position = scene->current_camera.get().position+position_offset;
+	}
+	if(glfwGetKey(scene->window,GLFW_KEY_D)){
+		Vector3 position_offset = Vector3(0,0,move_speed*deltaTime).apply_rotation(scene->current_camera.get().rotation);
+		scene->current_camera.get().position = scene->current_camera.get().position+position_offset;
+	}
+	if(scene->cursor_lock&&(scene->default_cursor_pos[0]!=scene->changed_cursor_pos[0]||scene->default_cursor_pos[1]!=scene->changed_cursor_pos[1])){ // Check cursor lock and if position changed
 		int_fast16_t mouse_movement[2] = {
-			static_cast<int_fast16_t>(abs(default_cursor_pos[0]-changed_cursor_pos[0])), // Cast so compiler sees int to int16 is delibrate so that it won't show warnings
-			static_cast<int_fast16_t>(abs(default_cursor_pos[1]-changed_cursor_pos[1]))
+			static_cast<int_fast16_t>(abs(scene->default_cursor_pos[0]-scene->changed_cursor_pos[0])), // Cast so compiler sees int to int16 is delibrate so that it won't show warnings
+			static_cast<int_fast16_t>(abs(scene->default_cursor_pos[1]-scene->changed_cursor_pos[1]))
 		};
 		if(mouse_movement[0]>0){
-			if(default_cursor_pos[0]<changed_cursor_pos[0])
+			if(scene->default_cursor_pos[0]<scene->changed_cursor_pos[0])
 				mouse_movement[0]=-mouse_movement[0];
-			current_camera.get().rotation.y+=turn_speed*mouse_movement[0];
+			scene->current_camera.get().rotation.y+=turn_speed*mouse_movement[0];
 		}
 		if(mouse_movement[1]>0){
-			if(default_cursor_pos[1]<changed_cursor_pos[1])
+			if(scene->default_cursor_pos[1]<scene->changed_cursor_pos[1])
 				mouse_movement[1]=-mouse_movement[1];
-			current_camera.get().yaw+=turn_speed*mouse_movement[1];
-			if(current_camera.get().yaw>2)
-				current_camera.get().yaw = 2;
-			if(current_camera.get().yaw<-2)
-				current_camera.get().yaw = -2;
+			scene->current_camera.get().yaw+=turn_speed*mouse_movement[1];
+			if(scene->current_camera.get().yaw>2)
+				scene->current_camera.get().yaw = 2;
+			if(scene->current_camera.get().yaw<-2)
+				scene->current_camera.get().yaw = -2;
 		}
 	}
 }
-void updateTitleWithFPS(GLFWwindow* window,string original_title, double& lastTime, int& nbFrames) {
-    double currentTime = glfwGetTime();
-    nbFrames++;
-    if (currentTime - lastTime >= 1.0) {
-        double fps = double(nbFrames) / (currentTime - lastTime);
-        ostringstream ss;
-        ss << fixed << setprecision(1) << fps;
-    	string fpsString = original_title + " FPS: " + ss.str();
-        glfwSetWindowTitle(window, fpsString.c_str());
-        nbFrames = 0;
-        lastTime += 1.0;
-    }
-}
-Vector3 vector3_from_string(string str){
-	vector<string> vec = split_string(str,",");
-	Vector3 ret_value = Vector3(stof(vec[0]),stof(vec[1]),stof(vec[2]));
-	vec.clear();
-	return ret_value;
-}
-void load_scene(string path){
+void load_scene(string path,Scene* scene){
 	if(path.size()<5){return;}
 	string path_substring = path.substr(path.size()-5,5);
 	transform(path_substring.begin(), path_substring.end(), path_substring.begin(), ::tolower);
@@ -505,12 +460,14 @@ void load_scene(string path){
 		if (!file.is_open()){
 			return;
 		}
-		for(int i=0;i<scene_objects.size();i++){
-			delete &scene_objects[i].get();
-		}scene_objects.clear();
-		for(int i=0;i<scene_cameras.size();i++){
-			delete &scene_cameras[i].get();
-		}scene_cameras.clear();
+		for(int i=0;i<scene->objects.size();i++){
+			delete &scene->objects[i].get();
+		}
+		scene->objects.clear();
+		for(int i=0;i<scene->cameras.size();i++){
+			delete &scene->cameras[i].get();
+		}
+		scene->cameras.clear();
 		string file_contents;
 		getline(file,file_contents);
 		vector<string> lvl_contents = split_string(file_contents,"|");
@@ -520,47 +477,43 @@ void load_scene(string path){
 			if(saved_type == 0){
 				Object* new_obj = new Object();
 				new_obj->from_file(saved_data[1]);
-				string_to_char(saved_data[2],new_obj->name[0]);
-				new_obj->position = vector3_from_string(saved_data[3]);
-				new_obj->scale = vector3_from_string(saved_data[4]);
-				new_obj->rotation = vector3_from_string(saved_data[5]);
-				scene_objects.push_back(*new_obj);
+				strcpy(new_obj->name[0],saved_data[2].c_str());
+				new_obj->position.from_str(saved_data[3]);
+				new_obj->scale.from_str(saved_data[4]);
+				new_obj->rotation.from_str(saved_data[5]);
+				scene->objects.push_back(*new_obj);
+				cout<<"object added"<<endl;
 			}else if(saved_type == 1){
 				Camera* new_cam = new Camera();
-				string_to_char(saved_data[1],new_cam->name[0]);
+				strcpy(new_cam->name[0],saved_data[1].c_str());
 				if((bool)stoi(saved_data[2]))
-					current_camera = *new_cam;
-				new_cam->position = vector3_from_string(saved_data[3]);
+					scene->current_camera = *new_cam;
+				new_cam->position.from_str(saved_data[3]);
 				new_cam->rotation.y = stof(saved_data[4]);
 				new_cam->yaw = stof(saved_data[5]);
-				scene_cameras.push_back(*new_cam);
+				scene->cameras.push_back(*new_cam);
 			}
 			saved_data.clear();
 		}
 		lvl_contents.clear();
 	}
 }
-void save_scene(string path){
-	ofstream scene_file;
-	scene_file.open(path);
-	scene_file.close();
-}
-int width, height;
-void run_engine(void (&pre_logic)(void (&)()),void(&logic)(void),int size_x,int size_y,string window_title,bool two_dimensional = false) {
+void run_engine(void (&pre_logic)(void (&)()),void(&logic)(void),int size_x,int size_y,string window_title,Scene* scene) {
 	if (!glfwInit())
 		return;
-	window = glfwCreateWindow(size_x,size_y,window_title.c_str(),NULL,NULL);
-	if (!window)
+	scene->window = glfwCreateWindow(size_x,size_y,window_title.c_str(),NULL,NULL);
+	if (!scene->window)
 	{
 		glfwTerminate();
 		return;
 	}
-	glfwMakeContextCurrent(window);
+	glfwMakeContextCurrent(scene->window);
 	glfwSwapInterval(0);
-	glfwSetFramebufferSizeCallback(window, setup_matrix);
-	glfwGetFramebufferSize(window, &width, &height);
+	
+	glfwSetFramebufferSizeCallback(scene->window, setup_matrix);
+	glfwGetFramebufferSize(scene->window, &scene->width, &scene->height);
 	glDrawBuffer(GL_FRONT);
-	setup_matrix(window, width, height);
+	setup_matrix(scene->window, scene->width, scene->height);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glTranslatef(0.0, 0.0, -1.0);
 	glEnable(GL_DEPTH_TEST);
@@ -568,58 +521,57 @@ void run_engine(void (&pre_logic)(void (&)()),void(&logic)(void),int size_x,int 
 	glEnable(GL_CULL_FACE);
 
 	double lastTime = glfwGetTime();
-    int nbFrames = 0;
+	int nbFrames = 0;
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-	ImGui_ImplGlfw_InitForOpenGL(window, true);
+	ImGui_ImplGlfw_InitForOpenGL(scene->window, true);
 	ImGui_ImplOpenGL3_Init();
-	scene_cameras.push_back(current_camera.get());
-
-	while (!glfwWindowShouldClose(window))
+	scene->cameras.push_back(scene->current_camera.get());
+	while (!glfwWindowShouldClose(scene->window))
 	{
 		deltaTime = getDeltaTime();
 		HDC window_dc = wglGetCurrentDC();
 		HWND window_handle = WindowFromDC(window_dc);
-		glfwGetFramebufferSize(window, &width, &height);
+		glfwGetFramebufferSize(scene->window, &scene->width, &scene->height);
 		RECT window_rect;
 		RECT display_rect;
 		GetClientRect(window_handle, &display_rect);
 		GetWindowRect(window_handle, &window_rect);
 		POINT cursor_location;
 		GetCursorPos(&cursor_location);
-		changed_cursor_pos[0] = cursor_location.x;
-		changed_cursor_pos[1] = cursor_location.y;
-		default_cursor_pos[0] = floor(window_rect.left + (width / 2));
-		default_cursor_pos[1] = floor(window_rect.top + (height / 2));
-		if(cursor_lock&&(default_cursor_pos[0]!=changed_cursor_pos[0]||default_cursor_pos[1]!=changed_cursor_pos[1])) // Check cursor lock and if position changed
-			SetCursorPos(default_cursor_pos[0],default_cursor_pos[1]);
+		scene->changed_cursor_pos[0] = cursor_location.x;
+		scene->changed_cursor_pos[1] = cursor_location.y;
+		scene->default_cursor_pos[0] = floor(window_rect.left + (scene->width / 2));
+		scene->default_cursor_pos[1] = floor(window_rect.top + (scene->height / 2));
+		if(scene->cursor_lock&&(scene->default_cursor_pos[0]!=scene->changed_cursor_pos[0]||scene->default_cursor_pos[1]!=scene->changed_cursor_pos[1])) // Check cursor lock and if position changed
+			SetCursorPos(scene->default_cursor_pos[0],scene->default_cursor_pos[1]);
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 		glMatrixMode(GL_MODELVIEW);
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		// Drawing/Rendering objects
-		for (int i = 0; i < scene_objects.size(); i++) {
-			scene_objects[i].get().draw_mesh();
+		for (int i = 0; i < scene->objects.size(); i++) {
+			scene->objects[i].get().draw_mesh(scene->current_camera,scene->lighting_severity);
 		}
-		if(pre_logic_ran){
+		if(scene->pre_logic_ran){
 			logic();
 		}else{
 			pre_logic(logic);
 		}
-		updateTitleWithFPS(window,window_title,lastTime,nbFrames);
+		updateTitleWithFPS(scene->window,window_title,lastTime,nbFrames);
 		ImGui::GetIO().IniFilename = NULL;
 		glLoadIdentity();
 		Vector3 up_vector = Vector3(0,1,0);
 		Vector3 camera_rotation_offset = Vector3(.01,0,0);
-		Vector3 camera_height_offset = Vector3(0,current_camera.get().yaw*0.01,0);
-		Vector3 offset_camera = apply_vertex_rotation(camera_rotation_offset,current_camera.get().rotation)+current_camera.get().position+camera_height_offset;
+		Vector3 camera_height_offset = Vector3(0,scene->current_camera.get().yaw*0.01,0);
+		Vector3 offset_camera = camera_rotation_offset.apply_rotation(scene->current_camera.get().rotation)+scene->current_camera.get().position+camera_height_offset;
 		gluLookAt(
-		current_camera.get().position.x
-		,current_camera.get().position.y
-		,current_camera.get().position.z
+		scene->current_camera.get().position.x
+		,scene->current_camera.get().position.y
+		,scene->current_camera.get().position.z
 		,offset_camera.x
 		,offset_camera.y
 		,offset_camera.z

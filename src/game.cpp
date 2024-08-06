@@ -39,7 +39,7 @@ void obj_editor(Object* obj,int ID){
 		ImGui::SameLine();
 		ImGui::SliderInt("##TextureSlider",(int *)&obj->texture_id,0,100); //If higher than 100 needed just tab and type
 		if(ImGui::Button("Change name")){
-			strcpy(editor_name,object_name);
+			strcpy(object_name,editor_name);
 		}
 		ImGui::SameLine();
 		if(ImGui::Button("Load Texture")){

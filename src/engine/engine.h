@@ -253,7 +253,9 @@ class Object{
 					colors.push_back(0);
 				}else if (current_line.substr(0,3).compare("vt ") == 0){
 					split = split_string(current_line.substr(3)," ");
-					Vector3 uv_vertex(stof(split[0]),stof(split[1]),0);
+					cout<<current_line<<endl;
+					Vector3 uv_vertex(1-stof(split[0]),1-stof(split[1]),0);
+					cout<<uv_vertex.to_str()<<endl;
 					uv_vertices.push_back(uv_vertex);
 				}else if (current_line.substr(0,2).compare("f ") == 0){
 					split = split_string(current_line.substr(2)," ");
@@ -297,8 +299,8 @@ class Object{
 		glBindTexture(GL_TEXTURE_2D, texture_id);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		int width, height, nrChannels;
 		unsigned char *data = stbi_load(texture_path.c_str(), &width, &height, &nrChannels, 0);
 		if (data) {

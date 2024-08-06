@@ -11,6 +11,7 @@ void pre_logic(void (&logic)(void)){
 	scene->pre_logic_ran = true;
 	load_scene("./default.scene",scene);
 	scene->objects[0].get().load_texture("container.jpg");
+	scene->objects[0].get().use_uv = false;
 	logic();
 }
 void vec3editor(string name,Vector3* vec3,int ID){

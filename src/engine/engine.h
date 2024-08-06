@@ -167,6 +167,12 @@ struct Mesh
 			Vector3(-1, 1, 1),
 			Vector3(-1, -1, 1)
 		};
+		uv_vertices = {
+			Vector3(1,1,0),
+			Vector3(1,0,0),
+			Vector3(0,0,0),
+			Vector3(0,1,0)
+		};
 		faces = {
 			{0, 4, 6, 2},
 			{3, 2, 6, 7},
@@ -174,6 +180,14 @@ struct Mesh
 			{5, 1, 3, 7},
 			{1, 0, 2, 3},
 			{5, 4, 0, 1}
+		};
+		uv_faces={
+			{0, 1, 2, 3},
+			{0, 1, 2, 3},
+			{0, 1, 2, 3},
+			{0, 1, 2, 3},
+			{0, 1, 2, 3},
+			{0, 1, 2, 3}
 		};
 		colors = {
 			Vector3(1, 1, 1)
@@ -187,7 +201,9 @@ struct Mesh
 		faces = _faces;
 	}
 	vector<Vector3> vertices;
+	vector<Vector3> uv_vertices;
 	vector<vector<unsigned int>> faces;
+	vector<vector<unsigned int>> uv_faces;
 	vector<Vector3> colors;
 	vector<uint16_t> vertex_colors;
 };
@@ -201,6 +217,7 @@ class Object{
 		GLuint texture_id = 0;
 		bool wireframe = false;
 		bool lighting = true;
+		bool use_uv = true;
 		int gl_face_culling = 1;
 	Object() : name() {
 		strcpy(name[0],"none");
@@ -214,6 +231,8 @@ class Object{
 			if (!file.is_open()){
 				return;
 			}
+			mesh.uv_faces.clear();
+			mesh.uv_vertices.clear();
 			mesh.vertices.clear();
 			mesh.faces.clear();
 			mesh.colors.clear();
@@ -221,6 +240,8 @@ class Object{
 			mesh.colors.push_back(Vector3(1,1,1));
 			string current_line;
 			vector<Vector3> vertices;
+			vector<Vector3> uv_vertices;
+			vector<vector<unsigned int>> uv_faces;
 			vector<vector<unsigned int>> faces;
 			vector<uint16_t> colors;
 			while (getline(file, current_line)){
@@ -230,21 +251,32 @@ class Object{
 					Vector3 vertex(stof(split[0]),stof(split[1]),stof(split[2]));
 					vertices.push_back(vertex);
 					colors.push_back(0);
-				}
-				if (current_line.substr(0,2).compare("f ") == 0){
+				}else if (current_line.substr(0,3).compare("vt ") == 0){
+					split = split_string(current_line.substr(3)," ");
+					Vector3 uv_vertex(stof(split[0]),stof(split[1]),0);
+					uv_vertices.push_back(uv_vertex);
+				}else if (current_line.substr(0,2).compare("f ") == 0){
 					split = split_string(current_line.substr(2)," ");
 					vector<string> _split;
 					vector<unsigned int> face;
+					vector<unsigned int> uv_face;
 					for(int i=0;i<split.size();i++){
 						_split = split_string(split[i],"/");
 						face.push_back(stoi(_split[0])-1);
+						uv_face.push_back(stoi(_split[1])-1);
 					}
 					faces.push_back(face);
+					uv_faces.push_back(uv_face);
 					face.clear();
+					uv_face.clear();
 					_split.clear();
 				}
 				split.clear();
 			}
+			mesh.uv_vertices = uv_vertices;
+			uv_vertices.clear();
+			mesh.uv_faces = uv_faces;
+			uv_faces.clear();
 			mesh.vertices = vertices;
 			vertices.clear();
 			mesh.faces = faces;
@@ -326,6 +358,22 @@ class Object{
 				}
 				for(int _i=0;_i<mesh.faces[i].size();_i++){
 					Vector3 vertex = mesh.vertices[mesh.faces[i][_i]];
+					Vector3 uv_vertex;
+					if(i<mesh.uv_faces.size()&&use_uv==true){
+						if(mesh.uv_faces[i][_i]<mesh.uv_vertices.size()){
+							uv_vertex = mesh.uv_vertices[mesh.uv_faces[i][_i]];
+						}
+					}else{
+						if(_i==0){
+							uv_vertex = Vector3(1, 1, 0);
+						}else if(_i==1){
+							uv_vertex = Vector3(1, 0, 0);
+						}else if(_i==2){
+							uv_vertex = Vector3(0, 0, 0);
+						}else if(_i==3){
+							uv_vertex = Vector3(0, 1, 0);
+						}
+					}
 					vertex.x*=scale.x;
 					vertex.y*=scale.y;
 					vertex.z*=scale.z;
@@ -344,15 +392,7 @@ class Object{
 							vertex_color.z=0;
 					}
 					glColor3f(vertex_color.x, vertex_color.y, vertex_color.z);
-					if(_i==0){
-						glTexCoord2f(1, 1);
-					}else if(_i==1){
-						glTexCoord2f(1, 0);
-					}else if(_i==2){
-						glTexCoord2f(0, 0);
-					}else if(_i==3){
-						glTexCoord2f(0, 1);
-					}
+					glTexCoord2f(uv_vertex.x,uv_vertex.y);
 					glVertex3f(vertex.x, vertex.y, vertex.z);
 				}
 				glEnd();
@@ -372,11 +412,6 @@ void updateTitleWithFPS(GLFWwindow* window,string original_title, double& lastTi
 		nbFrames = 0;
 		lastTime += 1.0;
 	}
-}
-void save_scene(string path){
-	ofstream scene_file;
-	scene_file.open(path);
-	scene_file.close();
 }
 auto setup_matrix = [](GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
@@ -451,6 +486,11 @@ void built_in_movement(float move_speed,float turn_speed,Scene* scene){
 		}
 	}
 }
+void save_scene(string path, Scene* scene){
+	ofstream scene_file;
+	scene_file.open(path);
+	scene_file.close();
+}
 void load_scene(string path,Scene* scene){
 	if(path.size()<5){return;}
 	string path_substring = path.substr(path.size()-5,5);
@@ -482,7 +522,6 @@ void load_scene(string path,Scene* scene){
 				new_obj->scale.from_str(saved_data[4]);
 				new_obj->rotation.from_str(saved_data[5]);
 				scene->objects.push_back(*new_obj);
-				cout<<"object added"<<endl;
 			}else if(saved_type == 1){
 				Camera* new_cam = new Camera();
 				strcpy(new_cam->name[0],saved_data[1].c_str());

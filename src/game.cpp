@@ -8,10 +8,9 @@ char temp[128];
 char scene_name[128];
 Scene* scene=new Scene();
 void pre_logic(void (&logic)(void)){
-	scene->pre_logic_ran = true;
+	pre_logic_ran = true;
 	load_scene("./default.scene",scene);
 	scene->objects[0].get().load_texture("container.jpg");
-	scene->objects[0].get().use_uv = false;
 	logic();
 }
 void vec3editor(string name,Vector3* vec3,int ID){
@@ -26,6 +25,30 @@ void vec3editor(string name,Vector3* vec3,int ID){
 	ImGui::SameLine();
 	ImGui::SetNextItemWidth(100.0f);
 	ImGui::SliderFloat("##z",&vec3->z,-10.0f,10.0f);
+	ImGui::PopID();
+}
+void rotDegreeEditor(string name,Vector3* vec3,int ID){
+	Vector3 rotDegree = Vector3();
+	rotDegree.x = RadianToDegree(vec3->x);
+	rotDegree.y = RadianToDegree(vec3->y);
+	rotDegree.z = RadianToDegree(vec3->z);
+	ImGui::PushID(ID);
+	ImGui::TextColored(ImVec4(1,1,0,1), name.c_str());
+	ImGui::SameLine();
+	ImGui::SetNextItemWidth(100.0f);
+	if(ImGui::SliderFloat("##x",&rotDegree.x,-360.0f,360.0f)){
+		vec3->x = DegreeToRadian(rotDegree.x);
+	}
+	ImGui::SameLine();
+	ImGui::SetNextItemWidth(100.0f);
+	if(ImGui::SliderFloat("##y",&rotDegree.y,-360.0f,360.0f)){
+		vec3->y = DegreeToRadian(rotDegree.y);
+	}
+	ImGui::SameLine();
+	ImGui::SetNextItemWidth(100.0f);
+	if(ImGui::SliderFloat("##z",&rotDegree.z,-360.0f,360.0f)){
+		vec3->z = DegreeToRadian(rotDegree.z);
+	}
 	ImGui::PopID();
 }
 void obj_editor(Object* obj,int ID){
@@ -58,10 +81,11 @@ void obj_editor(Object* obj,int ID){
 		ImGui::SameLine();
 		ImGui::Checkbox("##Wireframe",&obj->wireframe);
 		vec3editor("Scale",&obj->scale,0);
-		vec3editor("Rotation",&obj->rotation,1);
-		vec3editor("Position",&obj->position,2);
+		rotDegreeEditor("Rotation in degrees",&obj->rotation,1);
+		vec3editor("Rotation in radians",&obj->rotation,2);
+		vec3editor("Position",&obj->position,3);
 		ImGui::TextColored(ImVec4(1,1,0,1),"Culling");
-		ImGui::ListBox("##cullingtype",&obj->gl_face_culling,scene->object_culling_types,IM_ARRAYSIZE(scene->object_culling_types));
+		ImGui::ListBox("##cullingtype",&obj->gl_face_culling,object_culling_types,IM_ARRAYSIZE(object_culling_types));
 		ImGui::TreePop();
 	}
 	ImGui::PopID();
@@ -103,16 +127,16 @@ void logic(){
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui::NewFrame();
 	ImGui::SetNextWindowPos(ImVec2(0,0), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(500, 800), ImGuiCond_Once);
+	ImGui::SetNextWindowSize(ImVec2(500, 800), ImGuiCond_Once);
 	if(debug_ui_open){if (ImGui::Begin("Debug UI", &debug_ui_open)){
 		ImGui::TextColored(ImVec4(1,1,0,1), "Rendering Stuff");
 		ImGui::SameLine();
 		ImGui::TextColored(ImVec4(1,1,0,1), "Movement Stuff");
 		ImGui::SliderFloat("move_speed", &move_speed, 0.0f, 10.0f);
 		ImGui::SliderFloat("turn_speed", &turn_speed, 0.0f, .01f);
-		ImGui::SliderFloat("lighting_severity", &scene->lighting_severity, 0.0f, 2.0f);
+		ImGui::SliderFloat("lighting_severity", &lighting_severity, 0.0f, 2.0f);
 		if(ImGui::SliderFloat("fov",&fov,0.0f,120.0f)){
-			setup_matrix(scene->window, scene->width, scene->height);
+			setup_matrix(window, width, height);
 		}
 		ImGui::TextColored(ImVec4(1,1,0,1), "Misc Stuff");
 		ImGui::SetNextItemWidth(300.0f);
@@ -152,26 +176,26 @@ void logic(){
 	ImGuiIO& io = ImGui::GetIO();
 	if(!io.WantCaptureKeyboard||!io.WantCaptureMouse){
 		built_in_movement(move_speed,turn_speed,scene);
-		if(glfwGetKey(scene->window,GLFW_KEY_MINUS)){
+		if(glfwGetKey(window,GLFW_KEY_MINUS)){
 			move_speed-=.01;
 			if(move_speed < 0)
 				move_speed = 0;
 		}
-		if(glfwGetKey(scene->window,GLFW_KEY_EQUAL)){
+		if(glfwGetKey(window,GLFW_KEY_EQUAL)){
 			move_speed+=.01;
 		}
 	}
-	if(glfwGetKey(scene->window,GLFW_KEY_F3)){
+	if(glfwGetKey(window,GLFW_KEY_F3)){
 		if(!pressing_debug)
 			debug_ui_open = !debug_ui_open;
 		pressing_debug=true;
 	}else{
 		pressing_debug = false;
 	}
-	if(glfwGetKey(scene->window,GLFW_KEY_ESCAPE)){
+	if(glfwGetKey(window,GLFW_KEY_ESCAPE)){
 		if(!pressing_escape){
-			scene->cursor_lock=!scene->cursor_lock;
-			ShowCursor(!scene->cursor_lock);
+			cursor_lock=!cursor_lock;
+			ShowCursor(!cursor_lock);
 		}
 		pressing_escape = true;
 	}else{
